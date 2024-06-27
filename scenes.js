@@ -9,6 +9,12 @@ const {
 } = require('./bookings');
 const { notifyMainAdmin } = require('./notifications'); // Import the notifyMainAdmin function
 
+function getDayOfWeek(dateString) {
+  const date = new Date(dateString);
+  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  return daysOfWeek[date.getUTCDay()];
+}
+
 // Create a scene for selecting the booking time
 const selectTimeScene = new Scenes.BaseScene("selectTimeScene");
 selectTimeScene.enter(async (ctx) => {
@@ -39,7 +45,9 @@ selectTimeScene.on("callback_query", async (ctx) => {
     bookings.push(newBooking);
     saveBookings(bookings);
 
-    await ctx.reply(`Booking for ${selectedDate} at ${selectedTime} created, ${username}.`, {
+    const dayOfWeek = getDayOfWeek(selectedDate);
+
+    await ctx.reply(`Booking for ${selectedDate} (${dayOfWeek}) at ${selectedTime} created, ${username}.`, {
       reply_markup: {
         inline_keyboard: [
           [{ text: "Book again", callback_data: "book_again" }]

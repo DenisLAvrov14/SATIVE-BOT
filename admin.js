@@ -1,9 +1,8 @@
 const { Markup } = require('telegraf');
-const { addAdminById, removeAdminById } = require('./adminUtils');
-
-const admins = [144824294]; // Replace with your ID
+const { addAdminById, removeAdminById, loadAdmins } = require('./adminUtils');
 
 function isAdmin(userId) {
+  const admins = loadAdmins();
   return admins.includes(userId);
 }
 

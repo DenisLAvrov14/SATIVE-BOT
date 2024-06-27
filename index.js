@@ -15,6 +15,12 @@ const { loadBookings, deleteBooking } = require('./bookings');
 bot.use(session());
 bot.use(stage.middleware());
 
+function getDayOfWeek(dateString) {
+  const date = new Date(dateString);
+  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  return daysOfWeek[date.getUTCDay()];
+}
+
 // Handling the /start command
 bot.start((ctx) => {
   ctx.scene.enter("selectDateScene");
@@ -75,8 +81,9 @@ bot.command('list', async (ctx) => {
   }
   let response = 'List of all bookings:\n\n';
   bookings.forEach((booking) => {
+    const dayOfWeek = getDayOfWeek(booking.date);
     const userLink = booking.username ? `[${booking.username}](https://t.me/${booking.username})` : booking.user;
-    response += `Date: ${booking.date}\nTime: ${booking.time}\nUser: ${userLink}\n\n`;
+    response += `Date: ${booking.date} (${dayOfWeek})\nTime: ${booking.time}\nUser: ${userLink}\n\n`;
   });
   await ctx.replyWithMarkdown(response, { disable_web_page_preview: true });
 });

@@ -19,6 +19,12 @@ function deleteBooking(date, time) {
   saveBookings(bookings);
 }
 
+function getDayOfWeek(dateString) {
+  const date = new Date(dateString);
+  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  return daysOfWeek[date.getUTCDay()];
+}
+
 function generateDateButtons() {
   const bookings = loadBookings();
   const availableDates = [];
@@ -28,6 +34,7 @@ function generateDateButtons() {
     const date = new Date();
     date.setDate(today.getDate() + i);
     const dateString = date.toISOString().split("T")[0];
+    const dayOfWeek = getDayOfWeek(dateString);
 
     const bookedTimes = bookings
       .filter((b) => b.date === dateString)
@@ -42,7 +49,7 @@ function generateDateButtons() {
 
     if (availableTimes.length > 0) {
       availableDates.push([
-        { text: dateString, callback_data: `date_${dateString}` },
+        { text: `${dateString} (${dayOfWeek})`, callback_data: `date_${dateString}` },
       ]);
     }
   }
@@ -68,9 +75,12 @@ function generateBookingButtons() {
   const bookings = loadBookings();
   const today = new Date().toISOString().split("T")[0];
   const filteredBookings = bookings.filter(b => b.date >= today);
-  const buttons = filteredBookings.map(b => [
-    { text: `${b.date} ${b.time} (${b.username ? `@${b.username}` : b.user})`, callback_data: `delete_${b.date}_${b.time}` }
-  ]);
+  const buttons = filteredBookings.map(b => {
+    const dayOfWeek = getDayOfWeek(b.date);
+    return [
+      { text: `${b.date} (${dayOfWeek}) ${b.time} (${b.username ? `@${b.username}` : b.user})`, callback_data: `delete_${b.date}_${b.time}` }
+    ];
+  });
   return buttons;
 }
 
