@@ -1,0 +1,5 @@
+{
+  "watch": ["index.js", "bookings.json"],
+  "ext": "js,json",
+  "ignore": ["bookings.json", "node_modules"]
+}

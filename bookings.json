@@ -1,0 +1,16 @@
+{
+  "bookings": [
+    {
+      "date": "2024-07-05",
+      "time": "07:00",
+      "user": "Denis",
+      "username": "Denis_Lavrov"
+    },
+    {
+      "date": "2024-07-08",
+      "time": "20:00",
+      "user": "Denis",
+      "username": "Denis_Lavrov"
+    }
+  ]
+}
