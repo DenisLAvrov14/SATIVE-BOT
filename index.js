@@ -11,18 +11,19 @@ const {
 const { addAdminById, removeAdminById } = require('./adminUtils');
 const { loadBookings, deleteBooking } = require('./bookings');
 
-// Middleware for sessions and scenes
-bot.use(session());
-bot.use(stage.middleware());
-
 function getDayOfWeek(dateString) {
   const date = new Date(dateString);
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   return daysOfWeek[date.getUTCDay()];
 }
 
+// Middleware for sessions and scenes
+bot.use(session());
+bot.use(stage.middleware());
+
 // Handling the /start command
 bot.start((ctx) => {
+  console.log('Handling /start command');
   ctx.scene.enter("selectDateScene");
 });
 
@@ -30,9 +31,28 @@ bot.start((ctx) => {
 bot.command('admin', adminPanel);
 
 // Handling button clicks in the admin panel
-bot.action('admin_add', handleAdminAdd);
-bot.action('admin_remove', handleAdminRemove);
-bot.action('admin_delete_booking', handleAdminDeleteBooking);
+bot.action('admin_add', (ctx) => {
+  console.log('Handling admin_add action');
+  handleAdminAdd(ctx);
+});
+
+bot.action('admin_remove', (ctx) => {
+  console.log('Handling admin_remove action');
+  handleAdminRemove(ctx);
+});
+
+bot.action('admin_delete_booking', (ctx) => {
+  console.log('Handling admin_delete_booking action');
+  handleAdminDeleteBooking(ctx);
+});
+
+// Handling button clicks to remove an admin
+bot.action(/remove_admin_(\d+)/, async (ctx) => {
+  const userId = Number(ctx.match[1]);
+  console.log(`Removing admin with ID: ${userId}`);
+  const result = removeAdminById(userId);
+  await ctx.reply(result);
+});
 
 // Command to add an admin by user ID
 bot.command('addadmin', async (ctx) => {
@@ -44,7 +64,8 @@ bot.command('addadmin', async (ctx) => {
     return ctx.reply('Usage: /addadmin <User ID>. For example: /addadmin 123456789');
   }
   const [_, userId] = args;
-  const result = addAdminById(Number(userId));
+  console.log(`Adding admin with ID: ${userId}`);
+  const result = await addAdminById(Number(userId), ctx); // Передаем ctx в функцию и добавляем await
   await ctx.reply(result);
 });
 
@@ -58,6 +79,7 @@ bot.command('removeadmin', async (ctx) => {
     return ctx.reply('Usage: /removeadmin <User ID>. For example: /removeadmin 123456789');
   }
   const [_, userId] = args;
+  console.log(`Removing admin with ID: ${userId}`);
   const result = removeAdminById(Number(userId));
   await ctx.reply(result);
 });
@@ -79,13 +101,19 @@ bot.command('list', async (ctx) => {
   if (bookings.length === 0) {
     return ctx.reply('No bookings.');
   }
+  const sortedBookings = bookings.sort((a, b) => new Date(a.date) - new Date(b.date));
   let response = 'List of all bookings:\n\n';
-  bookings.forEach((booking) => {
+  sortedBookings.forEach((booking) => {
     const dayOfWeek = getDayOfWeek(booking.date);
     const userLink = booking.username ? `[${booking.username}](https://t.me/${booking.username})` : booking.user;
     response += `Date: ${booking.date} (${dayOfWeek})\nTime: ${booking.time}\nUser: ${userLink}\n\n`;
   });
   await ctx.replyWithMarkdown(response, { disable_web_page_preview: true });
+});
+
+// Handling the callback for "book_again"
+bot.action('book_again', (ctx) => {
+  ctx.scene.enter("selectDateScene");
 });
 
 // Setting commands for the menu

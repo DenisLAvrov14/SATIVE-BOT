@@ -65,9 +65,19 @@ function generateTimeButtons(date) {
   const times = ["07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", 
                  "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", 
                  "22:00"];
-  const buttons = times
-    .filter((time) => !bookedTimes.includes(time))
-    .map((time) => [{ text: time, callback_data: `time_${date}_${time}` }]);
+  
+  const currentDate = new Date().toISOString().split("T")[0];
+  const currentTime = new Date().getHours() + ':' + String(new Date().getMinutes()).padStart(2, '0');
+
+  const availableTimes = times.filter(time => {
+    // Exclude booked times and past times for the current date
+    if (date === currentDate && time <= currentTime) {
+      return false;
+    }
+    return !bookedTimes.includes(time);
+  });
+
+  const buttons = availableTimes.map((time) => [{ text: time, callback_data: `time_${date}_${time}` }]);
   return buttons;
 }
 

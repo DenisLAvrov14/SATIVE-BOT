@@ -1,9 +1,11 @@
 const { Markup } = require('telegraf');
 const { addAdminById, removeAdminById, loadAdmins } = require('./adminUtils');
 
+const mainAdminId = 144824294; // Замените на ваш ID
+
 function isAdmin(userId) {
   const admins = loadAdmins();
-  return admins.includes(userId);
+  return admins.some(admin => admin.id === userId);
 }
 
 async function adminPanel(ctx) {
@@ -29,7 +31,11 @@ async function handleAdminRemove(ctx) {
   if (!isAdmin(ctx.from.id)) {
     return ctx.reply('You do not have permission to perform this command.');
   }
-  await ctx.reply('To remove an admin, use the command /removeadmin <User ID>. Example: /removeadmin 123456789');
+
+  const admins = loadAdmins().filter(admin => admin.id !== mainAdminId);
+  const buttons = admins.map(admin => [Markup.button.callback(`Remove ${admin.name}`, `remove_admin_${admin.id}`)]);
+  console.log('Displaying admin removal buttons:', buttons);
+  await ctx.reply('Select an admin to remove:', Markup.inlineKeyboard(buttons));
 }
 
 async function handleAdminDeleteBooking(ctx) {
