@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const { bot } = require('./botInstance'); // Импортируем объект bot для отправки сообщений
 
 const adminsFilePath = path.join(__dirname, 'admins.json');
 
@@ -13,39 +12,25 @@ function loadAdmins() {
 }
 
 function saveAdmins(admins) {
-  try {
-    fs.writeFileSync(adminsFilePath, JSON.stringify({ admins }, null, 2));
-    console.log('Admins saved successfully.');
-  } catch (error) {
-    console.error('Error saving admins:', error);
-  }
+  fs.writeFileSync(adminsFilePath, JSON.stringify({ admins }, null, 2));
 }
 
 async function addAdminById(userId, ctx) {
   const admins = loadAdmins();
   if (!admins.some(admin => admin.id === userId)) {
-    try {
-      const user = await bot.telegram.getChat(userId);
-      const userName = user.username ? `@${user.username}` : user.first_name;
-      admins.push({ id: userId, name: userName });
-      saveAdmins(admins);
-      ctx.reply(`User ${userName} has been added as an administrator.`);
-
-      // Отправляем уведомление новому администратору
-      bot.telegram.sendMessage(userId, 'You have been appointed as an administrator. Use the admin panel command to access administrative functions.');
-
-      return `User ${userName} has been added as an administrator.`;
-    } catch (error) {
-      console.error('Error adding admin:', error);
-      ctx.reply('Failed to add admin. Please make sure the user ID is correct.');
-    }
+    const userInfo = await ctx.telegram.getChat(userId);
+    const adminInfo = { id: userId, name: userInfo.username || userInfo.first_name };
+    admins.push(adminInfo);
+    saveAdmins(admins);
+    await ctx.telegram.sendMessage(userId, 'You have been granted admin privileges. Use the admin panel command to access admin features.');
+    return `User @${adminInfo.name} has been added as an administrator.`;
   } else {
     return `User with ID ${userId} is already an administrator.`;
   }
 }
 
 function removeAdminById(userId) {
-  let admins = loadAdmins();
+  const admins = loadAdmins();
   const index = admins.findIndex(admin => admin.id === userId);
   if (index > -1) {
     admins.splice(index, 1);
@@ -57,7 +42,8 @@ function removeAdminById(userId) {
 }
 
 module.exports = {
+  loadAdmins,
+  saveAdmins,
   addAdminById,
-  removeAdminById,
-  loadAdmins
+  removeAdminById
 };

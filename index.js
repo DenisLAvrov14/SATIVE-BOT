@@ -1,5 +1,6 @@
-const { bot } = require('./botInstance');
-const { session } = require('telegraf');
+require('dotenv').config();
+const { Telegraf, Scenes } = require('telegraf');
+const LocalSession = require('telegraf-session-local');
 const stage = require('./scenes');
 const {
   isAdmin,
@@ -10,6 +11,24 @@ const {
 } = require('./admin');
 const { addAdminById, removeAdminById } = require('./adminUtils');
 const { loadBookings, deleteBooking } = require('./bookings');
+const { bot, mainAdminId } = require('./botInstance');
+
+console.log('Starting bot...');
+console.log('Main Admin ID:', mainAdminId);
+
+const localSession = new LocalSession({
+  database: 'session_db.json'
+});
+
+bot.use(localSession.middleware());
+
+bot.use((ctx, next) => {
+  console.log(`Session Middleware - from ID: ${ctx.from ? ctx.from.id : 'N/A'}`);
+  console.log('Session state:', ctx.session);
+  return next();
+});
+
+bot.use(stage.middleware());
 
 function getDayOfWeek(dateString) {
   const date = new Date(dateString);
@@ -17,115 +36,188 @@ function getDayOfWeek(dateString) {
   return daysOfWeek[date.getUTCDay()];
 }
 
-// Middleware for sessions and scenes
-bot.use(session());
-bot.use(stage.middleware());
-
-// Handling the /start command
-bot.start((ctx) => {
+bot.start(async (ctx) => {
   console.log('Handling /start command');
-  ctx.scene.enter("selectDateScene");
+  const isAdminUser = isAdmin(ctx.from.id);
+  ctx.session.isAdmin = isAdminUser;
+  console.log(`User ${ctx.from.id} is admin: ${isAdminUser}`);
+  await ctx.scene.enter("selectDateScene");
 });
 
-// Admin panel
-bot.command('admin', adminPanel);
+bot.command('admin', async (ctx) => {
+  console.log('Handling /admin command');
+  if (ctx.session.isAdmin) {
+    await ctx.scene.leave(); // Завершаем текущую сцену
+    await adminPanel(ctx);
+  } else {
+    await ctx.reply('You do not have permission to perform this command.');
+  }
+});
 
-// Handling button clicks in the admin panel
-bot.action('admin_add', (ctx) => {
+bot.action('admin_add', async (ctx) => {
   console.log('Handling admin_add action');
-  handleAdminAdd(ctx);
+  try {
+    await ctx.scene.leave(); // Завершаем текущую сцену
+    if (ctx.session.isAdmin) {
+      await handleAdminAdd(ctx);
+    } else {
+      await ctx.reply('You do not have permission to perform this command.');
+    }
+    await ctx.answerCbQuery('admin_add action handled');
+  } catch (error) {
+    console.error('Error in admin_add action:', error);
+  }
 });
 
-bot.action('admin_remove', (ctx) => {
+bot.action('admin_remove', async (ctx) => {
   console.log('Handling admin_remove action');
-  handleAdminRemove(ctx);
+  try {
+    await ctx.scene.leave(); // Завершаем текущую сцену
+    if (ctx.session.isAdmin) {
+      await handleAdminRemove(ctx);
+    } else {
+      await ctx.reply('You do not have permission to perform this command.');
+    }
+    await ctx.answerCbQuery('admin_remove action handled');
+  } catch (error) {
+    console.error('Error in admin_remove action:', error);
+  }
 });
 
-bot.action('admin_delete_booking', (ctx) => {
+bot.action('admin_delete_booking', async (ctx) => {
   console.log('Handling admin_delete_booking action');
-  handleAdminDeleteBooking(ctx);
+  try {
+    await ctx.scene.leave(); // Завершаем текущую сцену
+    if (ctx.session.isAdmin) {
+      await handleAdminDeleteBooking(ctx);
+    } else {
+      await ctx.reply('You do not have permission to perform this command.');
+    }
+    await ctx.answerCbQuery('admin_delete_booking action handled');
+  } catch (error) {
+    console.error('Error in admin_delete_booking action:', error);
+  }
 });
 
-// Handling button clicks to remove an admin
 bot.action(/remove_admin_(\d+)/, async (ctx) => {
+  console.log(`Handling remove_admin action`);
   const userId = Number(ctx.match[1]);
-  console.log(`Removing admin with ID: ${userId}`);
-  const result = removeAdminById(userId);
-  await ctx.reply(result);
+  try {
+    await ctx.scene.leave(); // Завершаем текущую сцену
+    if (ctx.session.isAdmin) {
+      const result = removeAdminById(userId);
+      await ctx.reply(result);
+    } else {
+      await ctx.reply('You do not have permission to perform this command.');
+    }
+    await ctx.answerCbQuery('remove_admin action handled');
+  } catch (error) {
+    console.error('Error in remove_admin action:', error);
+  }
 });
 
-// Command to add an admin by user ID
 bot.command('addadmin', async (ctx) => {
-  if (!isAdmin(ctx.from.id)) {
-    return ctx.reply('You do not have permission to perform this command.');
+  console.log(`Command /addadmin called by user ${ctx.from.id}`);
+  try {
+    await ctx.scene.leave(); // Завершаем текущую сцену
+    if (!ctx.session.isAdmin) {
+      return ctx.reply('You do not have permission to perform this command.');
+    }
+    const args = ctx.message.text.split(' ');
+    if (args.length !== 2) {
+      return ctx.reply('Usage: /addadmin <User ID>. For example: /addadmin 123456789');
+    }
+    const [_, userId] = args;
+    const result = await addAdminById(Number(userId), ctx);
+    await ctx.reply(result);
+  } catch (error) {
+    console.error('Error in addadmin command:', error);
   }
-  const args = ctx.message.text.split(' ');
-  if (args.length !== 2) {
-    return ctx.reply('Usage: /addadmin <User ID>. For example: /addadmin 123456789');
-  }
-  const [_, userId] = args;
-  console.log(`Adding admin with ID: ${userId}`);
-  const result = await addAdminById(Number(userId), ctx); // Передаем ctx в функцию и добавляем await
-  await ctx.reply(result);
 });
 
-// Command to remove an admin by user ID
 bot.command('removeadmin', async (ctx) => {
-  if (!isAdmin(ctx.from.id)) {
-    return ctx.reply('You do not have permission to perform this command.');
+  console.log(`Command /removeadmin called by user ${ctx.from.id}`);
+  try {
+    await ctx.scene.leave(); // Завершаем текущую сцену
+    if (!ctx.session.isAdmin) {
+      return ctx.reply('You do not have permission to perform this command.');
+    }
+    const args = ctx.message.text.split(' ');
+    if (args.length !== 2) {
+      return ctx.reply('Usage: /removeadmin <User ID>. For example: /removeadmin 123456789');
+    }
+    const [_, userId] = args;
+    const result = removeAdminById(Number(userId));
+    await ctx.reply(result);
+  } catch (error) {
+    console.error('Error in removeadmin command:', error);
   }
-  const args = ctx.message.text.split(' ');
-  if (args.length !== 2) {
-    return ctx.reply('Usage: /removeadmin <User ID>. For example: /removeadmin 123456789');
-  }
-  const [_, userId] = args;
-  console.log(`Removing admin with ID: ${userId}`);
-  const result = removeAdminById(Number(userId));
-  await ctx.reply(result);
 });
 
-// Command to delete a booking through a scene
 bot.command('delete', async (ctx) => {
-  if (!isAdmin(ctx.from.id)) {
-    return ctx.reply('You do not have permission to perform this command.');
+  console.log(`Command /delete called by user ${ctx.from.id}`);
+  try {
+    await ctx.scene.leave(); // Завершаем текущую сцену
+    if (!ctx.session.isAdmin) {
+      return ctx.reply('You do not have permission to perform this command.');
+    }
+    await ctx.scene.enter("deleteBookingScene");
+  } catch (error) {
+    console.error('Error in delete command:', error);
   }
-  await ctx.scene.enter("deleteBookingScene");
 });
 
-// Command to request a list of all bookings
 bot.command('list', async (ctx) => {
-  if (!isAdmin(ctx.from.id)) {
-    return ctx.reply('You do not have permission to perform this command.');
+  console.log(`Command /list called by user ${ctx.from.id}`);
+  try {
+    await ctx.scene.leave(); // Завершаем текущую сцену
+    if (!ctx.session.isAdmin) {
+      return ctx.reply('You do not have permission to perform this command.');
+    }
+    const bookings = loadBookings();
+    if (bookings.length === 0) {
+      return ctx.reply('No bookings.');
+    }
+    const sortedBookings = bookings.sort((a, b) => new Date(a.date) - new Date(b.date));
+    let response = 'List of all bookings:\n\n';
+    sortedBookings.forEach((booking) => {
+      const dayOfWeek = getDayOfWeek(booking.date);
+      const userLink = booking.username ? `[${booking.username}](https://t.me/${booking.username})` : booking.user;
+      response += `Date: ${booking.date} (${dayOfWeek})\nTime: ${booking.time}\nUser: ${userLink}\n\n`;
+    });
+    await ctx.replyWithMarkdown(response, { disable_web_page_preview: true });
+  } catch (error) {
+    console.error('Error in list command:', error);
   }
-  const bookings = loadBookings();
-  if (bookings.length === 0) {
-    return ctx.reply('No bookings.');
-  }
-  const sortedBookings = bookings.sort((a, b) => new Date(a.date) - new Date(b.date));
-  let response = 'List of all bookings:\n\n';
-  sortedBookings.forEach((booking) => {
-    const dayOfWeek = getDayOfWeek(booking.date);
-    const userLink = booking.username ? `[${booking.username}](https://t.me/${booking.username})` : booking.user;
-    response += `Date: ${booking.date} (${dayOfWeek})\nTime: ${booking.time}\nUser: ${userLink}\n\n`;
-  });
-  await ctx.replyWithMarkdown(response, { disable_web_page_preview: true });
 });
 
-// Handling the callback for "book_again"
-bot.action('book_again', (ctx) => {
-  ctx.scene.enter("selectDateScene");
+bot.command('book', async (ctx) => {
+  console.log('Handling /book command');
+  try {
+    await ctx.scene.leave(); // Завершаем текущую сцену
+    await ctx.scene.enter("selectDateScene");
+  } catch (error) {
+    console.error('Error in book command:', error);
+  }
 });
 
-// Setting commands for the menu
+bot.action('book_again', async (ctx) => {
+  console.log('Handling book_again action');
+  try {
+    await ctx.scene.leave(); // Завершаем текущую сцену
+    await ctx.scene.enter("selectDateScene");
+    await ctx.answerCbQuery();
+  } catch (error) {
+    console.error('Error in book_again action:', error);
+  }
+});
+
 bot.telegram.setMyCommands([
   { command: 'start', description: 'Start working with the bot' },
-  { command: 'admin', description: 'Open the admin panel' },
-  { command: 'addadmin', description: 'Add an admin (admins only)' },
-  { command: 'removeadmin', description: 'Remove an admin (admins only)' },
-  { command: 'delete', description: 'Delete a booking (admins only)' },
-  { command: 'list', description: 'List all bookings (admins only)' }
+  { command: 'book', description: 'Book a session' },
+  { command: 'list', description: 'List all bookings (admins only)' },
+  { command: 'admin', description: 'Open the admin panel' }
 ]);
 
-// Launching the bot
 bot.launch();
 console.log('The bot is running.');
