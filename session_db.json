@@ -4,11 +4,12 @@
       "id": "144824294:144824294",
       "data": {
         "__scenes": {
+          "current": "selectDateScene",
           "state": {}
         },
         "isAdmin": true,
-        "selectedDate": "2024-07-03",
-        "selectedTime": "08:00"
+        "selectedDate": "2024-07-13",
+        "selectedTime": "19:00"
       }
     }
   ]
