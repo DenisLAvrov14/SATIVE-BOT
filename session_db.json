@@ -4,12 +4,23 @@
       "id": "144824294:144824294",
       "data": {
         "__scenes": {
-          "current": "selectDateScene",
-          "state": {}
+          "state": {},
+          "current": "deleteBookingScene"
         },
         "isAdmin": true,
-        "selectedDate": "2024-07-13",
-        "selectedTime": "19:00"
+        "selectedDate": "2024-07-14",
+        "selectedTime": "12:00"
+      }
+    },
+    {
+      "id": "136826768:136826768",
+      "data": {
+        "__scenes": {
+          "state": {}
+        },
+        "isAdmin": false,
+        "selectedDate": "2024-07-17",
+        "selectedTime": "17:00"
       }
     }
   ]

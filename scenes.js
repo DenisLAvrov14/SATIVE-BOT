@@ -8,6 +8,7 @@ const {
   generateBookingButtons
 } = require('./bookings');
 const { notifyMainAdmin } = require('./notifications');
+const { addBooking, removeBooking } = require('./syncWithGoogleSheets'); // Добавьте эту строку
 
 function getDayOfWeek(dateString) {
   const date = new Date(dateString);
@@ -43,6 +44,7 @@ selectTimeScene.on('callback_query', async (ctx) => {
     const bookings = loadBookings();
     bookings.push(newBooking);
     saveBookings(bookings);
+    addBooking(newBooking); // Добавьте эту строку для синхронизации с Google Sheets
 
     const dayOfWeek = getDayOfWeek(selectedDate);
 
@@ -121,7 +123,9 @@ deleteBookingScene.on('callback_query', async (ctx) => {
   if (response.startsWith('delete_')) {
     const [_, selectedDate, selectedTime] = response.split('_');
     console.log('Deleting booking for:', selectedDate, selectedTime);  // Логирование удаляемого бронирования
+    const booking = { date: selectedDate, time: selectedTime, username: ctx.from.username }; // Создайте объект бронирования для удаления
     deleteBooking(selectedDate, selectedTime);
+    removeBooking(ctx.from.username); // Добавьте эту строку для синхронизации с Google Sheets
 
     await ctx.reply(`Booking for ${selectedDate} at ${selectedTime} deleted.`, {
       reply_markup: {
@@ -144,8 +148,6 @@ deleteBookingScene.on('callback_query', async (ctx) => {
     return ctx.scene.enter('manageBookingsScene');
   }
 });
-
-
 
 // Manage bookings scene
 const manageBookingsScene = new Scenes.BaseScene('manageBookingsScene');
@@ -205,6 +207,7 @@ manageBookingsScene.on('callback_query', async (ctx) => {
   } else if (response.startsWith('delete_')) {
     const [_, selectedDate, selectedTime] = response.split('_');
     deleteBooking(selectedDate, selectedTime);
+    removeBooking(ctx.from.username); // Добавьте эту строку для синхронизации с Google Sheets
     await ctx.reply(`Booking on ${selectedDate} at ${selectedTime} deleted.`);
     await ctx.reply('What would you like to do next?', {
       reply_markup: {

@@ -12,6 +12,7 @@ const {
 const { addAdminById, removeAdminById } = require('./adminUtils');
 const { loadBookings, deleteBooking } = require('./bookings');
 const { bot, mainAdminId } = require('./botInstance');
+const { addBooking, removeBooking } = require('./syncWithGoogleSheets'); // Добавьте эту строку
 
 console.log('Starting bot...');
 console.log('Main Admin ID:', mainAdminId);
@@ -97,6 +98,7 @@ bot.action('admin_delete_booking', async (ctx) => {
     await ctx.scene.leave();
     if (ctx.session.isAdmin) {
       await handleAdminDeleteBooking(ctx);
+      removeBooking(ctx.from.username); // Добавьте эту строку для удаления бронирования
     } else {
       await ctx.reply('You do not have permission to perform this command.');
     }
@@ -228,8 +230,6 @@ bot.action('return_to_manage_bookings', async (ctx) => {
     console.error('Error in return_to_manage_bookings action:', error);
   }
 });
-
-
 
 bot.telegram.setMyCommands([
   { command: 'start', description: 'Start working with the bot' },
