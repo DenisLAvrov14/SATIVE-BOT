@@ -8,7 +8,6 @@ const {
   generateBookingButtons
 } = require('./bookings');
 const { notifyMainAdmin } = require('./notifications');
-const { addBooking, removeBooking } = require('./syncWithGoogleSheets'); // Добавьте эту строку
 
 function getDayOfWeek(dateString) {
   const date = new Date(dateString);
@@ -42,9 +41,15 @@ selectTimeScene.on('callback_query', async (ctx) => {
     };
 
     const bookings = loadBookings();
+    const existingBooking = bookings.find(booking => booking.date === selectedDate && booking.time === selectedTime);
+    if (existingBooking) {
+      await ctx.reply(`Sorry, the slot on ${selectedDate} at ${selectedTime} is already booked by ${existingBooking.user}. Please select another time.`);
+      await ctx.answerCbQuery();
+      return;
+    }
+
     bookings.push(newBooking);
     saveBookings(bookings);
-    addBooking(newBooking); // Добавьте эту строку для синхронизации с Google Sheets
 
     const dayOfWeek = getDayOfWeek(selectedDate);
 
@@ -123,9 +128,7 @@ deleteBookingScene.on('callback_query', async (ctx) => {
   if (response.startsWith('delete_')) {
     const [_, selectedDate, selectedTime] = response.split('_');
     console.log('Deleting booking for:', selectedDate, selectedTime);  // Логирование удаляемого бронирования
-    const booking = { date: selectedDate, time: selectedTime, username: ctx.from.username }; // Создайте объект бронирования для удаления
     deleteBooking(selectedDate, selectedTime);
-    removeBooking(ctx.from.username); // Добавьте эту строку для синхронизации с Google Sheets
 
     await ctx.reply(`Booking for ${selectedDate} at ${selectedTime} deleted.`, {
       reply_markup: {

@@ -2,11 +2,11 @@ const fs = require('fs');
 const bookingsFilePath = "./bookings.json";
 
 function loadBookings() {
-  if (fs.existsSync(bookingsFilePath)) {
-    const data = fs.readFileSync(bookingsFilePath);
-    return JSON.parse(data).bookings;
+  if (!fs.existsSync(path)) {
+    return [];
   }
-  return [];
+  const data = fs.readFileSync(path, 'utf8');
+  return JSON.parse(data);
 }
 
 function saveBookings(bookings) {
