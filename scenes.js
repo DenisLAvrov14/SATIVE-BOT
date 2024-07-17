@@ -8,12 +8,7 @@ const {
   generateBookingButtons
 } = require('./bookings');
 const { notifyMainAdmin } = require('./notifications');
-
-function getDayOfWeek(dateString) {
-  const date = new Date(dateString);
-  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  return daysOfWeek[date.getUTCDay()];
-}
+const { getDayOfWeek } = require('./utils');
 
 // Time selection scene
 const selectTimeScene = new Scenes.BaseScene('selectTimeScene');

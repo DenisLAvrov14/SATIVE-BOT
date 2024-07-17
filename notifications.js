@@ -1,10 +1,5 @@
 const { bot, mainAdminId } = require('./botInstance');
-
-function getDayOfWeek(dateString) {
-  const date = new Date(dateString);
-  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  return daysOfWeek[date.getUTCDay()];
-}
+const { getDayOfWeek } = require('./utils');
 
 async function notifyMainAdmin(booking) {
   const dayOfWeek = getDayOfWeek(booking.date);

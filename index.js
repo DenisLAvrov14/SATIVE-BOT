@@ -12,7 +12,7 @@ const {
 const { addAdminById, removeAdminById } = require('./adminUtils');
 const { loadBookings, deleteBooking } = require('./bookings');
 const { bot, mainAdminId } = require('./botInstance');
-const { addBooking, removeBooking } = require('./syncWithGoogleSheets'); // Добавьте эту строку
+const { addBooking, removeBooking } = require('./syncWithGoogleSheets');
 
 console.log('Starting bot...');
 console.log('Main Admin ID:', mainAdminId);
@@ -37,11 +37,25 @@ function getDayOfWeek(dateString) {
   return daysOfWeek[date.getUTCDay()];
 }
 
+// Централизованная функция для обработки команд администратора
+async function handleAdminCommand(ctx, adminAction) {
+  try {
+    await ctx.answerCbQuery();
+    await ctx.scene.leave();
+    if (ctx.session.isAdmin) {
+      await adminAction(ctx);
+    } else {
+      await ctx.reply('You do not have permission to perform this command.');
+    }
+  } catch (error) {
+    console.error('Error in admin command:', error);
+  }
+}
+
 bot.start(async (ctx) => {
   console.log('Handling /start command');
-  const isAdminUser = isAdmin(ctx.from.id);
-  ctx.session.isAdmin = isAdminUser;
-  console.log(`User ${ctx.from.id} is admin: ${isAdminUser}`);
+  ctx.session.isAdmin = isAdmin(ctx.from.id);
+  console.log(`User ${ctx.from.id} is admin: ${ctx.session.isAdmin}`);
   await ctx.scene.enter('selectDateScene');
 });
 
@@ -57,80 +71,37 @@ bot.command('admin', async (ctx) => {
 
 bot.action('manage_my_bookings', async (ctx) => {
   console.log('Handling manage_my_bookings action');
-  await ctx.answerCbQuery(); // Ответ на callback-запрос
+  await ctx.answerCbQuery();
   await ctx.scene.enter('manageBookingsScene');
 });
 
 bot.action('admin_add', async (ctx) => {
   console.log('Handling admin_add action');
-  try {
-    await ctx.answerCbQuery(); // Ответ на callback-запрос
-    await ctx.scene.leave();
-    if (ctx.session.isAdmin) {
-      await handleAdminAdd(ctx);
-    } else {
-      await ctx.reply('You do not have permission to perform this command.');
-    }
-  } catch (error) {
-    console.error('Error in admin_add action:', error);
-  }
+  await handleAdminCommand(ctx, handleAdminAdd);
 });
 
 bot.action('admin_remove', async (ctx) => {
   console.log('Handling admin_remove action');
-  try {
-    await ctx.answerCbQuery(); // Ответ на callback-запрос
-    await ctx.scene.leave();
-    if (ctx.session.isAdmin) {
-      await handleAdminRemove(ctx);
-    } else {
-      await ctx.reply('You do not have permission to perform this command.');
-    }
-  } catch (error) {
-    console.error('Error in admin_remove action:', error);
-  }
+  await handleAdminCommand(ctx, handleAdminRemove);
 });
 
 bot.action('admin_delete_booking', async (ctx) => {
   console.log('Handling admin_delete_booking action');
-  try {
-    await ctx.answerCbQuery(); // Ответ на callback-запрос
-    await ctx.scene.leave();
-    if (ctx.session.isAdmin) {
-      await handleAdminDeleteBooking(ctx);
-      removeBooking(ctx.from.username); // Добавьте эту строку для удаления бронирования
-    } else {
-      await ctx.reply('You do not have permission to perform this command.');
-    }
-  } catch (error) {
-    console.error('Error in admin_delete_booking action:', error);
-  }
+  await handleAdminCommand(ctx, handleAdminDeleteBooking);
 });
 
 bot.action(/remove_admin_(\d+)/, async (ctx) => {
   console.log(`Handling remove_admin action`);
   const userId = Number(ctx.match[1]);
-  try {
-    await ctx.answerCbQuery(); // Ответ на callback-запрос
-    await ctx.scene.leave();
-    if (ctx.session.isAdmin) {
-      const result = removeAdminById(userId);
-      await ctx.reply(result);
-    } else {
-      await ctx.reply('You do not have permission to perform this command.');
-    }
-  } catch (error) {
-    console.error('Error in remove_admin action:', error);
-  }
+  await handleAdminCommand(ctx, async () => {
+    const result = removeAdminById(userId);
+    await ctx.reply(result);
+  });
 });
 
 bot.command('addadmin', async (ctx) => {
   console.log(`Command /addadmin called by user ${ctx.from.id}`);
-  try {
-    await ctx.scene.leave();
-    if (!ctx.session.isAdmin) {
-      return ctx.reply('You do not have permission to perform this command.');
-    }
+  await handleAdminCommand(ctx, async () => {
     const args = ctx.message.text.split(' ');
     if (args.length !== 2) {
       return ctx.reply('Usage: /addadmin <User ID>. For example: /addadmin 123456789');
@@ -138,18 +109,12 @@ bot.command('addadmin', async (ctx) => {
     const [_, userId] = args;
     const result = await addAdminById(Number(userId), ctx);
     await ctx.reply(result);
-  } catch (error) {
-    console.error('Error in addadmin command:', error);
-  }
+  });
 });
 
 bot.command('removeadmin', async (ctx) => {
   console.log(`Command /removeadmin called by user ${ctx.from.id}`);
-  try {
-    await ctx.scene.leave();
-    if (!ctx.session.isAdmin) {
-      return ctx.reply('You do not have permission to perform this command.');
-    }
+  await handleAdminCommand(ctx, async () => {
     const args = ctx.message.text.split(' ');
     if (args.length !== 2) {
       return ctx.reply('Usage: /removeadmin <User ID>. For example: /removeadmin 123456789');
@@ -157,31 +122,19 @@ bot.command('removeadmin', async (ctx) => {
     const [_, userId] = args;
     const result = removeAdminById(Number(userId));
     await ctx.reply(result);
-  } catch (error) {
-    console.error('Error in removeadmin command:', error);
-  }
+  });
 });
 
 bot.command('delete', async (ctx) => {
   console.log(`Command /delete called by user ${ctx.from.id}`);
-  try {
-    await ctx.scene.leave();
-    if (!ctx.session.isAdmin) {
-      return ctx.reply('You do not have permission to perform this command.');
-    }
+  await handleAdminCommand(ctx, async () => {
     await ctx.scene.enter('deleteBookingScene');
-  } catch (error) {
-    console.error('Error in delete command:', error);
-  }
+  });
 });
 
 bot.command('list', async (ctx) => {
   console.log(`Command /list called by user ${ctx.from.id}`);
-  try {
-    await ctx.scene.leave();
-    if (!ctx.session.isAdmin) {
-      return ctx.reply('You do not have permission to perform this command.');
-    }
+  await handleAdminCommand(ctx, async () => {
     const bookings = loadBookings();
     if (bookings.length === 0) {
       return ctx.reply('No bookings.');
@@ -194,9 +147,7 @@ bot.command('list', async (ctx) => {
       response += `Date: ${booking.date} (${dayOfWeek})\nTime: ${booking.time}\nUser: ${userLink}\n\n`;
     });
     await ctx.replyWithMarkdown(response, { disable_web_page_preview: true });
-  } catch (error) {
-    console.error('Error in list command:', error);
-  }
+  });
 });
 
 bot.command('book', async (ctx) => {
@@ -212,7 +163,7 @@ bot.command('book', async (ctx) => {
 bot.action('book_again', async (ctx) => {
   console.log('Handling book_again action');
   try {
-    await ctx.answerCbQuery(); // Ответ на callback-запрос
+    await ctx.answerCbQuery();
     await ctx.scene.leave();
     await ctx.scene.enter('selectDateScene');
   } catch (error) {
@@ -223,7 +174,7 @@ bot.action('book_again', async (ctx) => {
 bot.action('return_to_manage_bookings', async (ctx) => {
   console.log('Handling return_to_manage_bookings action');
   try {
-    await ctx.answerCbQuery(); // Ответ на callback-запрос
+    await ctx.answerCbQuery();
     await ctx.scene.leave();
     await ctx.scene.enter('manageBookingsScene');
   } catch (error) {
