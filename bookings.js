@@ -19,6 +19,12 @@ function deleteBooking(date, time) {
   saveBookings(bookings);
 }
 
+function removeBooking(username) {
+  let bookings = loadBookings();
+  bookings = bookings.filter(b => b.username !== username);
+  saveBookings(bookings);
+}
+
 function getDayOfWeek(dateString) {
   const date = new Date(dateString);
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -98,6 +104,7 @@ module.exports = {
   loadBookings,
   saveBookings,
   deleteBooking,
+  removeBooking, 
   generateDateButtons,
   generateTimeButtons,
   generateBookingButtons
