@@ -5,7 +5,8 @@ const {
   deleteBooking,
   loadBookings,
   saveBookings,
-  generateBookingButtons
+  generateBookingButtons,
+  removeBooking 
 } = require('./bookings');
 const { notifyMainAdmin } = require('./notifications');
 const { getDayOfWeek } = require('./utils');
@@ -124,6 +125,7 @@ deleteBookingScene.on('callback_query', async (ctx) => {
     const [_, selectedDate, selectedTime] = response.split('_');
     console.log('Deleting booking for:', selectedDate, selectedTime);  // Логирование удаляемого бронирования
     deleteBooking(selectedDate, selectedTime);
+    removeBooking(ctx.from.username); // Добавьте эту строку для синхронизации с Google Sheets
 
     await ctx.reply(`Booking for ${selectedDate} at ${selectedTime} deleted.`, {
       reply_markup: {
