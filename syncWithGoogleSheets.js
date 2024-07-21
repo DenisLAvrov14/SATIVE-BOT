@@ -5,7 +5,7 @@ const jsonFilePath = './bookings.json';
 
 // Function to send data to Google Sheets
 async function sendDataToGoogleSheets(data) {
-  const webhookUrl = 'https://script.google.com/macros/s/1tOg9hNgJRW_AT9S6_fTuODvIxE6URXM8vJ4n786XhbQ/exec'; // Замените на ваш URL
+  const webhookUrl = 'https://script.google.com/macros/s/your-web-app-url/exec'; // Замените на ваш URL
   try {
     const response = await axios.post(webhookUrl, { bookings: data });
     console.log('Data sent successfully:', response.data);
