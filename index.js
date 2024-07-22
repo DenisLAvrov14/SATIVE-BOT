@@ -1,15 +1,9 @@
 require('dotenv').config();
 const { Telegraf, Scenes } = require('telegraf');
 const LocalSession = require('telegraf-session-local');
-const express = require('express'); // Добавлено
+const express = require('express');
 const stage = require('./scenes');
-const {
-  isAdmin,
-  adminPanel,
-  handleAdminAdd,
-  handleAdminRemove,
-  handleAdminDeleteBooking
-} = require('./admin');
+const { isAdmin, adminPanel, handleAdminAdd, handleAdminRemove, handleAdminDeleteBooking } = require('./admin');
 const { addAdminById, removeAdminById } = require('./adminUtils');
 const { loadBookings, deleteBooking } = require('./bookings');
 const { bot, mainAdminId } = require('./botInstance');
