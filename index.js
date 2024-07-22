@@ -1,9 +1,14 @@
 require('dotenv').config();
 const { Telegraf, Scenes } = require('telegraf');
 const LocalSession = require('telegraf-session-local');
-const express = require('express');
 const stage = require('./scenes');
-const { isAdmin, adminPanel, handleAdminAdd, handleAdminRemove, handleAdminDeleteBooking } = require('./admin');
+const {
+  isAdmin,
+  adminPanel,
+  handleAdminAdd,
+  handleAdminRemove,
+  handleAdminDeleteBooking
+} = require('./admin');
 const { addAdminById, removeAdminById } = require('./adminUtils');
 const { loadBookings, deleteBooking } = require('./bookings');
 const { bot, mainAdminId } = require('./botInstance');
@@ -184,16 +189,5 @@ bot.telegram.setMyCommands([
   { command: 'admin', description: 'Open the admin panel' }
 ]);
 
-const app = express();
-const PORT = process.env.PORT || 3000;
-const WEBHOOK_URL = process.env.WEBHOOK_URL || 'https://script.google.com/macros/s/AKfycbzZ7icfKMY8GuaHkV_C1HhuvEl_OLirm-8MGYYDGmC89yV6E_pRJ9nlClrAcLotrl8kuw/exec';
-
-// Установите webhook
-app.use(bot.webhookCallback('/secret-path'));
-bot.telegram.setWebhook(WEBHOOK_URL);
-
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
-
+bot.launch();
 console.log('The bot is running.');
