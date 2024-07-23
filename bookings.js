@@ -1,111 +1,88 @@
-const fs = require('fs');
-const bookingsFilePath = "./bookings.json";
+const { query } = require('./db');
+const { getDayOfWeek } = require('./utils');
 
-function loadBookings() {
-  if (!fs.existsSync(bookingsFilePath)) {
-    return [];
-  }
-  const data = fs.readFileSync(bookingsFilePath, 'utf8');
-  return JSON.parse(data).bookings;
+async function loadBookings() {
+    const result = await query('SELECT * FROM bookings');
+    return result.rows;
 }
 
-function saveBookings(bookings) {
-  fs.writeFileSync(bookingsFilePath, JSON.stringify({ bookings }, null, 2), 'utf8');
+async function saveBooking(booking) {
+    const { date, time, username, user } = booking;
+    await query('INSERT INTO bookings (date, time, username, user) VALUES ($1, $2, $3, $4)', [date, time, username, user]);
 }
 
-function deleteBooking(date, time) {
-  let bookings = loadBookings();
-  bookings = bookings.filter(b => !(b.date === date && b.time === time));
-  saveBookings(bookings);
+async function deleteBooking(date, time) {
+    await query('DELETE FROM bookings WHERE date = $1 AND time = $2', [date, time]);
 }
 
-function removeBooking(username) {
-  let bookings = loadBookings();
-  bookings = bookings.filter(b => b.username !== username);
-  saveBookings(bookings);
+async function removeBooking(username) {
+    await query('DELETE FROM bookings WHERE username = $1', [username]);
 }
 
-function getDayOfWeek(dateString) {
-  const date = new Date(dateString);
-  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  return daysOfWeek[date.getUTCDay()];
-}
+async function generateDateButtons() {
+    const bookings = await loadBookings();
+    const availableDates = [];
+    const today = new Date();
 
-function generateDateButtons() {
-  const bookings = loadBookings();
-  const availableDates = [];
-  const today = new Date();
+    for (let i = 0; i < 14; i++) {
+        const date = new Date();
+        date.setDate(today.getDate() + i);
+        const dateString = date.toISOString().split("T")[0];
+        const dayOfWeek = getDayOfWeek(dateString);
 
-  for (let i = 0; i < 14; i++) {
-    const date = new Date();
-    date.setDate(today.getDate() + i);
-    const dateString = date.toISOString().split("T")[0];
-    const dayOfWeek = getDayOfWeek(dateString);
+        const bookedTimes = bookings.filter((b) => b.date === dateString).map((b) => b.time);
 
-    const bookedTimes = bookings
-      .filter((b) => b.date === dateString)
-      .map((b) => b.time);
+        const allTimes = ["07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", 
+                          "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", 
+                          "22:00"];
+        const availableTimes = allTimes.filter((time) => !bookedTimes.includes(time));
 
-    const allTimes = ["07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", 
-                      "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", 
-                      "22:00"];
-    const availableTimes = allTimes.filter(
-      (time) => !bookedTimes.includes(time)
-    );
-
-    if (availableTimes.length > 0) {
-      availableDates.push([
-        { text: `${dateString} (${dayOfWeek})`, callback_data: `date_${dateString}` },
-      ]);
+        if (availableTimes.length > 0) {
+            availableDates.push([{ text: `${dateString} (${dayOfWeek})`, callback_data: `date_${dateString}` }]);
+        }
     }
-  }
-  return availableDates;
+    return availableDates;
 }
 
-function generateTimeButtons(date) {
-  const bookings = loadBookings();
-  const bookedTimes = bookings
-    .filter((b) => b.date === date)
-    .map((b) => b.time);
+async function generateTimeButtons(date) {
+    const bookings = await loadBookings();
+    const bookedTimes = bookings.filter((b) => b.date === date).map((b) => b.time);
 
-  const times = ["07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", 
-                 "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", 
-                 "22:00"];
+    const times = ["07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", 
+                   "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", 
+                   "22:00"];
 
-  const currentDate = new Date().toISOString().split("T")[0];
-  const currentTime = new Date().getHours() + ':' + String(new Date().getMinutes()).padStart(2, '0');
+    const currentDate = new Date().toISOString().split("T")[0];
+    const currentTime = new Date().getHours() + ':' + String(new Date().getMinutes()).padStart(2, '0');
 
-  const availableTimes = times.filter(time => {
-    // Exclude booked times and past times for the current date
-    if (date === currentDate && time <= currentTime) {
-      return false;
-    }
-    return !bookedTimes.includes(time);
-  });
+    const availableTimes = times.filter(time => {
+        if (date === currentDate && time <= currentTime) {
+            return false;
+        }
+        return !bookedTimes.includes(time);
+    });
 
-  const buttons = availableTimes.map((time) => [{ text: time, callback_data: `time_${date}_${time}` }]);
-  return buttons;
+    const buttons = availableTimes.map((time) => [{ text: time, callback_data: `time_${date}_${time}` }]);
+    return buttons;
 }
 
-function generateBookingButtons() {
-  const bookings = loadBookings();
-  const today = new Date().toISOString().split("T")[0];
-  const filteredBookings = bookings.filter(b => b.date >= today);
-  const buttons = filteredBookings.map(b => {
-    const dayOfWeek = getDayOfWeek(b.date);
-    return [
-      { text: `${b.date} (${dayOfWeek}) ${b.time} (${b.username ? `@${b.username}` : b.user})`, callback_data: `delete_${b.date}_${b.time}` }
-    ];
-  });
-  return buttons;
+async function generateBookingButtons() {
+    const bookings = await loadBookings();
+    const today = new Date().toISOString().split("T")[0];
+    const filteredBookings = bookings.filter(b => b.date >= today);
+    const buttons = filteredBookings.map(b => {
+        const dayOfWeek = getDayOfWeek(b.date);
+        return [{ text: `${b.date} (${dayOfWeek}) ${b.time} (${b.username ? `@${b.username}` : b.user})`, callback_data: `delete_${b.date}_${b.time}` }];
+    });
+    return buttons;
 }
 
 module.exports = {
-  loadBookings,
-  saveBookings,
-  deleteBooking,
-  removeBooking, 
-  generateDateButtons,
-  generateTimeButtons,
-  generateBookingButtons
+    loadBookings,
+    saveBooking,
+    deleteBooking,
+    removeBooking,
+    generateDateButtons,
+    generateTimeButtons,
+    generateBookingButtons
 };

@@ -4,20 +4,20 @@ const {
   generateTimeButtons,
   deleteBooking,
   loadBookings,
-  saveBookings,
+  saveBooking, // Используем эту функцию для сохранения бронирований
   generateBookingButtons,
   removeBooking 
 } = require('./bookings');
 const { notifyMainAdmin } = require('./notifications');
 const { getDayOfWeek } = require('./utils');
 
-// Time selection scene
+// Сцена выбора времени
 const selectTimeScene = new Scenes.BaseScene('selectTimeScene');
 selectTimeScene.enter(async (ctx) => {
   const selectedDate = ctx.session.selectedDate;
-  await ctx.reply(`You have selected the date: ${selectedDate}. Now choose a time:`, {
+  await ctx.reply(`Вы выбрали дату: ${selectedDate}. Теперь выберите время:`, {
     reply_markup: {
-      inline_keyboard: generateTimeButtons(selectedDate),
+      inline_keyboard: await generateTimeButtons(selectedDate),
     },
   });
 });
@@ -36,23 +36,22 @@ selectTimeScene.on('callback_query', async (ctx) => {
       username: ctx.from.username,
     };
 
-    const bookings = loadBookings();
+    const bookings = await loadBookings();
     const existingBooking = bookings.find(booking => booking.date === selectedDate && booking.time === selectedTime);
     if (existingBooking) {
-      await ctx.reply(`Sorry, the slot on ${selectedDate} at ${selectedTime} is already booked by ${existingBooking.user}. Please select another time.`);
+      await ctx.reply(`Извините, слот на ${selectedDate} в ${selectedTime} уже занят ${existingBooking.user}. Пожалуйста, выберите другое время.`);
       await ctx.answerCbQuery();
       return;
     }
 
-    bookings.push(newBooking);
-    saveBookings(bookings);
+    await saveBooking(newBooking); // Сохраняем бронирование
 
     const dayOfWeek = getDayOfWeek(selectedDate);
 
-    await ctx.reply(`Booking for ${selectedDate} (${dayOfWeek}) at ${selectedTime} created, ${username}.`, {
+    await ctx.reply(`Бронирование на ${selectedDate} (${dayOfWeek}) в ${selectedTime} создано, ${username}.`, {
       reply_markup: {
         inline_keyboard: [
-          [{ text: 'Book Again', callback_data: 'book_again' }],
+          [{ text: 'Забронировать снова', callback_data: 'book_again' }],
         ],
       },
     });
@@ -63,15 +62,15 @@ selectTimeScene.on('callback_query', async (ctx) => {
   }
 });
 
-// Date selection scene
+// Сцена выбора даты
 const selectDateScene = new Scenes.BaseScene('selectDateScene');
 selectDateScene.enter(async (ctx) => {
-  await ctx.reply('Welcome! Please select an option:', {
+  await ctx.reply('Добро пожаловать! Пожалуйста, выберите опцию:', {
     reply_markup: {
       inline_keyboard: [
-        [{ text: 'Booking Rules', callback_data: 'show_booking_rules' }],
-        [{ text: 'Select Date', callback_data: 'select_date' }],
-        [{ text: 'Manage My Bookings', callback_data: 'manage_my_bookings' }],
+        [{ text: 'Правила бронирования', callback_data: 'show_booking_rules' }],
+        [{ text: 'Выбрать дату', callback_data: 'select_date' }],
+        [{ text: 'Управлять моими бронированиями', callback_data: 'manage_my_bookings' }],
       ],
     },
   });
@@ -80,17 +79,17 @@ selectDateScene.on('callback_query', async (ctx) => {
   const response = ctx.callbackQuery.data;
   if (response === 'show_booking_rules') {
     await ctx.reply(
-      'Booking Rules:\n\n' +
-        '1. Slots of one and a half hours can be booked, occupying two slots in the schedule, but costing as one and a half.\n' +
-        '2. Strictly book according to slots.\n' +
-        '3. The second consecutive slot with the same client is half the price.\n' +
-        '4. For non-hourly slot bookings, please contact the admin.'
+      'Правила бронирования:\n\n' +
+        '1. Слоты на полтора часа можно бронировать, занимая два слота в расписании, но стоимость будет как за полтора.\n' +
+        '2. Строго бронировать по слотам.\n' +
+        '3. Второй последовательный слот с тем же клиентом стоит в полцены.\n' +
+        '4. Для бронирования не по часовым слотам, свяжитесь с администратором.'
     );
     await ctx.answerCbQuery();
   } else if (response === 'select_date') {
-    await ctx.reply('Please select a date for your massage session', {
+    await ctx.reply('Пожалуйста, выберите дату для сеанса массажа', {
       reply_markup: {
-        inline_keyboard: generateDateButtons(),
+        inline_keyboard: await generateDateButtons(),
       },
     });
     await ctx.answerCbQuery();
@@ -108,56 +107,56 @@ selectDateScene.on('callback_query', async (ctx) => {
   }
 });
 
-// Booking deletion scene
+// Сцена удаления бронирования
 const deleteBookingScene = new Scenes.BaseScene('deleteBookingScene');
 deleteBookingScene.enter(async (ctx) => {
-  await ctx.reply('Select a booking to delete:', {
+  await ctx.reply('Выберите бронирование для удаления:', {
     reply_markup: {
-      inline_keyboard: generateBookingButtons(),
+      inline_keyboard: await generateBookingButtons(),
     },
   });
 });
 deleteBookingScene.on('callback_query', async (ctx) => {
   const response = ctx.callbackQuery.data;
-  console.log('Callback query received:', response);  // Логирование ответа
+  console.log('Callback query received:', response);
 
   if (response.startsWith('delete_')) {
     const [_, selectedDate, selectedTime] = response.split('_');
-    console.log('Deleting booking for:', selectedDate, selectedTime);  // Логирование удаляемого бронирования
-    deleteBooking(selectedDate, selectedTime);
-    removeBooking(ctx.from.username); // Добавьте эту строку для синхронизации с Google Sheets
+    console.log('Deleting booking for:', selectedDate, selectedTime);
+    await deleteBooking(selectedDate, selectedTime);
+    await removeBooking(ctx.from.username); // Синхронизация с Google Sheets
 
-    await ctx.reply(`Booking for ${selectedDate} at ${selectedTime} deleted.`, {
+    await ctx.reply(`Бронирование на ${selectedDate} в ${selectedTime} удалено.`, {
       reply_markup: {
         inline_keyboard: [
-          [{ text: 'Book Another', callback_data: 'book_again' }],
-          [{ text: 'Return to Booking Management', callback_data: 'return_to_manage_bookings' }],
+          [{ text: 'Забронировать снова', callback_data: 'book_again' }],
+          [{ text: 'Вернуться к управлению бронированиями', callback_data: 'return_to_manage_bookings' }],
         ],
       },
     });
     await ctx.answerCbQuery();
   } else if (response === 'book_again') {
-    console.log('Handling book_again action');  // Логирование обработки действия
+    console.log('Handling book_again action');
     await ctx.answerCbQuery();
     await ctx.scene.leave();
     return ctx.scene.enter('selectDateScene');
   } else if (response === 'return_to_manage_bookings') {
-    console.log('Handling return_to_manage_bookings action');  // Логирование обработки действия
+    console.log('Handling return_to_manage_bookings action');
     await ctx.answerCbQuery();
     await ctx.scene.leave();
     return ctx.scene.enter('manageBookingsScene');
   }
 });
 
-// Manage bookings scene
+// Сцена управления бронированиями
 const manageBookingsScene = new Scenes.BaseScene('manageBookingsScene');
 
 manageBookingsScene.enter(async (ctx) => {
-  await ctx.reply('Manage My Bookings', {
+  await ctx.reply('Управление моими бронированиями', {
     reply_markup: {
       inline_keyboard: [
-        [{ text: 'View My Bookings', callback_data: 'view_my_bookings' }],
-        [{ text: 'Delete My Bookings', callback_data: 'delete_my_bookings' }],
+        [{ text: 'Просмотреть мои бронирования', callback_data: 'view_my_bookings' }],
+        [{ text: 'Удалить мои бронирования', callback_data: 'delete_my_bookings' }],
       ],
     },
   });
@@ -166,38 +165,38 @@ manageBookingsScene.enter(async (ctx) => {
 manageBookingsScene.on('callback_query', async (ctx) => {
   const response = ctx.callbackQuery.data;
   if (response === 'view_my_bookings') {
-    const bookings = loadBookings().filter((b) => b.username === ctx.from.username);
+    const bookings = (await loadBookings()).filter((b) => b.username === ctx.from.username);
     if (bookings.length === 0) {
-      await ctx.reply('You have no bookings.');
+      await ctx.reply('У вас нет бронирований.');
     } else {
-      let replyText = 'Your bookings:\n\n';
+      let replyText = 'Ваши бронирования:\n\n';
       bookings.forEach((booking) => {
         const dayOfWeek = getDayOfWeek(booking.date);
-        replyText += `Date: ${booking.date} (${dayOfWeek})\nTime: ${booking.time}\n\n`;
+        replyText += `Дата: ${booking.date} (${dayOfWeek})\nВремя: ${booking.time}\n\n`;
       });
       await ctx.reply(replyText);
     }
-    await ctx.reply('What would you like to do next?', {
+    await ctx.reply('Что бы вы хотели сделать дальше?', {
       reply_markup: {
         inline_keyboard: [
-          [{ text: 'Make a New Booking', callback_data: 'make_new_booking' }],
-          [{ text: 'Return to Booking Management', callback_data: 'return_to_manage_bookings' }],
+          [{ text: 'Сделать новое бронирование', callback_data: 'make_new_booking' }],
+          [{ text: 'Вернуться к управлению бронированиями', callback_data: 'return_to_manage_bookings' }],
         ],
       },
     });
     await ctx.answerCbQuery();
   } else if (response === 'delete_my_bookings') {
-    const bookings = loadBookings().filter((b) => b.username === ctx.from.username);
+    const bookings = (await loadBookings()).filter((b) => b.username === ctx.from.username);
     if (bookings.length === 0) {
-      await ctx.reply('You have no bookings to delete.');
+      await ctx.reply('У вас нет бронирований для удаления.');
       await ctx.answerCbQuery();
       await ctx.scene.leave();
     } else {
       const buttons = bookings.map((booking) => {
         const dayOfWeek = getDayOfWeek(booking.date);
-        return [{ text: `Delete booking on ${booking.date} at ${booking.time}`, callback_data: `delete_${booking.date}_${booking.time}` }];
+        return [{ text: `Удалить бронирование на ${booking.date} в ${booking.time}`, callback_data: `delete_${booking.date}_${booking.time}` }];
       });
-      await ctx.reply('Select a booking to delete:', {
+      await ctx.reply('Выберите бронирование для удаления:', {
         reply_markup: {
           inline_keyboard: buttons,
         },
@@ -206,14 +205,14 @@ manageBookingsScene.on('callback_query', async (ctx) => {
     }
   } else if (response.startsWith('delete_')) {
     const [_, selectedDate, selectedTime] = response.split('_');
-    deleteBooking(selectedDate, selectedTime);
-    removeBooking(ctx.from.username); // Добавьте эту строку для синхронизации с Google Sheets
-    await ctx.reply(`Booking on ${selectedDate} at ${selectedTime} deleted.`);
-    await ctx.reply('What would you like to do next?', {
+    await deleteBooking(selectedDate, selectedTime);
+    await removeBooking(ctx.from.username); // Синхронизация с Google Sheets
+    await ctx.reply(`Бронирование на ${selectedDate} в ${selectedTime} удалено.`);
+    await ctx.reply('Что бы вы хотели сделать дальше?', {
       reply_markup: {
         inline_keyboard: [
-          [{ text: 'Make a New Booking', callback_data: 'make_new_booking' }],
-          [{ text: 'Return to Booking Management', callback_data: 'return_to_manage_bookings' }],
+          [{ text: 'Сделать новое бронирование', callback_data: 'make_new_booking' }],
+          [{ text: 'Вернуться к управлению бронированиями', callback_data: 'return_to_manage_bookings' }],
         ],
       },
     });
@@ -229,12 +228,12 @@ manageBookingsScene.on('callback_query', async (ctx) => {
   }
 });
 
-// Add all scenes to stage
+// Добавляем все сцены на stage
 const stage = new Scenes.Stage([
   selectDateScene,
   selectTimeScene,
   deleteBookingScene,
-  manageBookingsScene, // Adding new scene here
+  manageBookingsScene,
 ]);
 
 stage.use((ctx, next) => {
