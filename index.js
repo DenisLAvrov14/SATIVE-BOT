@@ -37,7 +37,8 @@ const client = new Client({
     port: process.env.PGPORT,
     user: process.env.PGUSER,
     password: process.env.PGPASSWORD,
-    database: process.env.PGDATABASE
+    database: process.env.PGDATABASE,
+    ssl: false // Добавьте эту строку
 });
 
 client.connect()
@@ -53,7 +54,9 @@ function getDayOfWeek(dateString) {
 // Централизованная функция для обработки команд администратора
 async function handleAdminCommand(ctx, adminAction) {
     try {
-        await ctx.answerCbQuery();
+        if (ctx.callbackQuery) {
+            await ctx.answerCbQuery();
+        }
         await ctx.scene.leave();
         if (ctx.session.isAdmin) {
             await adminAction(ctx);
@@ -146,23 +149,30 @@ bot.command('delete', async (ctx) => {
 });
 
 bot.command('list', async (ctx) => {
-    console.log(`Command /list called by user ${ctx.from.id}`);
-    await handleAdminCommand(ctx, async () => {
-        const result = await client.query('SELECT * FROM bookings');
-        const bookings = result.rows;
-        if (bookings.length === 0) {
-            return ctx.reply('No bookings.');
-        }
-        const sortedBookings = bookings.sort((a, b) => new Date(a.booking_date) - new Date(b.booking_date));
-        let response = 'List of all bookings:\n\n';
-        sortedBookings.forEach((booking) => {
-            const dayOfWeek = getDayOfWeek(booking.booking_date);
-            const userLink = booking.username ? `[${booking.username}](https://t.me/${booking.username})` : booking.user_id;
-            response += `Date: ${booking.booking_date} (${dayOfWeek})\nTime: ${booking.time}\nUser: ${userLink}\n\n`;
-        });
-        await ctx.replyWithMarkdown(response, { disable_web_page_preview: true });
-    });
+  console.log(`Command /list called by user ${ctx.from.id}`);
+  await handleAdminCommand(ctx, async () => {
+      const result = await client.query('SELECT * FROM bookings');
+      const bookings = result.rows;
+      if (bookings.length === 0) {
+          return ctx.reply('No bookings.');
+      }
+      const sortedBookings = bookings.sort((a, b) => new Date(a.booking_date) - new Date(b.booking_date));
+      let response = 'List of all bookings:\n\n';
+      sortedBookings.forEach((booking) => {
+          const dayOfWeek = getDayOfWeek(booking.booking_date);
+          const formattedDate = new Date(booking.booking_date).toLocaleDateString('en-GB', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit'
+          });
+          const userLink = booking.username ? `[${booking.username}](https://t.me/${booking.username})` : booking.user_id;
+          response += `Date: ${formattedDate} (${dayOfWeek})\nTime: ${booking.time}\nUser: ${userLink}\n\n`;
+      });
+      await ctx.replyWithMarkdown(response, { disable_web_page_preview: true });
+  });
 });
+
+
 
 bot.command('book', async (ctx) => {
     console.log('Handling /book command');
