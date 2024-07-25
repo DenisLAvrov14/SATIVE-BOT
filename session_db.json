@@ -4,6 +4,7 @@
       "id": "144824294:144824294",
       "data": {
         "__scenes": {
+          "current": "manageBookingsScene",
           "state": {}
         },
         "isAdmin": true,
