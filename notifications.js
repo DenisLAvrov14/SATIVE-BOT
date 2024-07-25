@@ -1,13 +1,14 @@
-const { bot, mainAdminId } = require('./botInstance');
-const { getDayOfWeek } = require('./utils');
+const { Telegraf } = require('telegraf');
+require('dotenv').config();
 
-async function notifyMainAdmin(booking) {
-  const dayOfWeek = getDayOfWeek(booking.date);
-  const userLink = booking.username ? `[${booking.username}](https://t.me/${booking.username})` : booking.user;
-  const message = `New booking:\n\nDate: ${booking.date} (${dayOfWeek})\nTime: ${booking.time}\nUser: ${userLink}`;
-  await bot.telegram.sendMessage(mainAdminId, message, { parse_mode: 'Markdown', disable_web_page_preview: true });
-}
+const bot = new Telegraf(process.env.BOT_TOKEN);
+const mainAdminId = process.env.MAIN_ADMIN_ID;
+
+const notifyMainAdmin = async (booking) => {
+    const message = `New booking:\n\nDate: ${booking.booking_date}\nTime: ${booking.time}\nUser: [${booking.username}](https://t.me/${booking.username})`;
+    await bot.telegram.sendMessage(mainAdminId, message, { parse_mode: 'Markdown' });
+};
 
 module.exports = {
-  notifyMainAdmin
+    notifyMainAdmin
 };

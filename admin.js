@@ -1,5 +1,6 @@
 const { Markup } = require('telegraf');
 const { addAdminById, removeAdminById, loadAdmins } = require('./adminUtils');
+const { loadBookings, loadPastBookings } = require('./bookings');
 
 const mainAdminId = Number(process.env.MAIN_ADMIN_ID);
 
@@ -16,6 +17,8 @@ async function adminPanel(ctx) {
     [Markup.button.callback('Add Admin', 'admin_add')],
     [Markup.button.callback('Remove Admin', 'admin_remove')],
     [Markup.button.callback('Delete Booking', 'admin_delete_booking')],
+    [Markup.button.callback('View Current Bookings', 'view_current_bookings')],
+    [Markup.button.callback('View Past Bookings', 'view_past_bookings')]
   ]));
 }
 
@@ -64,10 +67,38 @@ async function handleAdminDeleteBooking(ctx) {
   }
 }
 
+async function handleViewCurrentBookings(ctx) {
+  const bookings = await loadBookings(ctx.from.id);
+  let message = 'Current Bookings:\n\n';
+
+  for (const booking of bookings) {
+      const date = new Date(booking.booking_date);
+      const usernameLink = `@${booking.username}`;
+      message += `Date: ${date.toDateString().slice(0, 10)} ${date.getFullYear()}\nTime: ${booking.time}\nMember: [${usernameLink}]\n\n`;
+  }
+
+  await ctx.replyWithMarkdown(message.trim());
+}
+
+async function handleViewPastBookings(ctx) {
+  const bookings = await loadPastBookings(ctx.from.id);
+  let message = 'Past Bookings:\n\n';
+
+  for (const booking of bookings) {
+      const date = new Date(booking.booking_date);
+      const usernameLink = `@${booking.username}`;
+      message += `Date: ${date.toDateString().slice(0, 10)} ${date.getFullYear()}\nTime: ${booking.time}\nMember:[ ${usernameLink}]\n\n`;
+  }
+
+  await ctx.replyWithMarkdown(message.trim());
+}
+
 module.exports = {
   isAdmin,
   adminPanel,
   handleAdminAdd,
   handleAdminRemove,
-  handleAdminDeleteBooking
+  handleAdminDeleteBooking,
+  handleViewCurrentBookings,
+  handleViewPastBookings
 };

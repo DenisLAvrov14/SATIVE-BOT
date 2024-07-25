@@ -8,7 +8,9 @@ const {
     adminPanel,
     handleAdminAdd,
     handleAdminRemove,
-    handleAdminDeleteBooking
+    handleAdminDeleteBooking,
+    handleViewCurrentBookings,
+    handleViewPastBookings
 } = require('./admin');
 const { addAdminById, removeAdminById } = require('./adminUtils');
 const { bot, mainAdminId } = require('./botInstance');
@@ -106,6 +108,16 @@ bot.action('admin_delete_booking', async (ctx) => {
     await handleAdminCommand(ctx, handleAdminDeleteBooking);
 });
 
+bot.action('view_current_bookings', async (ctx) => {
+    console.log('Handling view_current_bookings action');
+    await handleAdminCommand(ctx, handleViewCurrentBookings);
+});
+
+bot.action('view_past_bookings', async (ctx) => {
+    console.log('Handling view_past_bookings action');
+    await handleAdminCommand(ctx, handleViewPastBookings);
+});
+
 bot.action(/remove_admin_(\d+)/, async (ctx) => {
     console.log(`Handling remove_admin action`);
     const userId = Number(ctx.match[1]);
@@ -149,30 +161,28 @@ bot.command('delete', async (ctx) => {
 });
 
 bot.command('list', async (ctx) => {
-  console.log(`Command /list called by user ${ctx.from.id}`);
-  await handleAdminCommand(ctx, async () => {
-      const result = await client.query('SELECT * FROM bookings');
-      const bookings = result.rows;
-      if (bookings.length === 0) {
-          return ctx.reply('No bookings.');
-      }
-      const sortedBookings = bookings.sort((a, b) => new Date(a.booking_date) - new Date(b.booking_date));
-      let response = 'List of all bookings:\n\n';
-      sortedBookings.forEach((booking) => {
-          const dayOfWeek = getDayOfWeek(booking.booking_date);
-          const formattedDate = new Date(booking.booking_date).toLocaleDateString('en-GB', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit'
-          });
-          const userLink = booking.username ? `[${booking.username}](https://t.me/${booking.username})` : booking.user_id;
-          response += `Date: ${formattedDate} (${dayOfWeek})\nTime: ${booking.time}\nUser: ${userLink}\n\n`;
-      });
-      await ctx.replyWithMarkdown(response, { disable_web_page_preview: true });
-  });
+    console.log(`Command /list called by user ${ctx.from.id}`);
+    await handleAdminCommand(ctx, async () => {
+        const result = await client.query('SELECT * FROM bookings');
+        const bookings = result.rows;
+        if (bookings.length === 0) {
+            return ctx.reply('No bookings.');
+        }
+        const sortedBookings = bookings.sort((a, b) => new Date(a.booking_date) - new Date(b.booking_date));
+        let response = 'List of all bookings:\n\n';
+        sortedBookings.forEach((booking) => {
+            const dayOfWeek = getDayOfWeek(booking.booking_date);
+            const formattedDate = new Date(booking.booking_date).toLocaleDateString('en-GB', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+            const userLink = booking.username ? `[${booking.username}](https://t.me/${booking.username})` : booking.user_id;
+            response += `Date: ${formattedDate} (${dayOfWeek})\nTime: ${booking.time}\nUser: ${userLink}\n\n`;
+        });
+        await ctx.replyWithMarkdown(response, { disable_web_page_preview: true });
+    });
 });
-
-
 
 bot.command('book', async (ctx) => {
     console.log('Handling /book command');
