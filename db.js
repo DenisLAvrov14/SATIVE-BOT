@@ -8,23 +8,16 @@ const pool = new Pool({
   }
 });
 
-async function saveBooking(booking) {
-  const { user_id, username, booking_date, status, time } = booking;
+async function loadBookings() {
   const client = await pool.connect();
-  console.log('Attempting to save booking:', booking); // Log the booking data
   try {
-    await client.query('BEGIN');
-    const queryText = 'INSERT INTO bookings(user_id, username, booking_date, status, time) VALUES($1, $2, $3, $4, $5)';
-    await client.query(queryText, [user_id, username, booking_date, status, time]);
-    await client.query('COMMIT');
-    console.log('Booking saved successfully'); // Log success
-  } catch (e) {
-    await client.query('ROLLBACK');
-    console.error('Error saving booking:', e); // Log the error
-    throw e;
+    const result = await client.query('SELECT * FROM bookings WHERE booking_date >= CURRENT_DATE');
+    return result.rows;
+  } catch (err) {
+    console.error('Error loading bookings:', err);
   } finally {
     client.release();
   }
 }
 
-module.exports = { saveBooking };
+module.exports = { loadBookings };
