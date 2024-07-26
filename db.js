@@ -2,38 +2,29 @@ const { Client } = require('pg');
 require('dotenv').config();
 
 const client = new Client({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
+  host: process.env.PGHOST,
+  port: process.env.PGPORT,
+  user: process.env.PGUSER,
+  password: process.env.PGPASSWORD,
+  database: process.env.PGDATABASE,
+  ssl: true
 });
 
-client.connect();
-
-client.query('SELECT table_schema,table_name FROM information_schema.tables;', (err, res) => {
-  if (err) throw err;
-  for (let row of res.rows) {
-    console.log(JSON.stringify(row));
+client.connect(err => {
+  if (err) {
+    console.error('Connection error', err.stack);
+  } else {
+    console.log('Connected to database');
   }
-  client.end();
 });
 
 async function loadBookings() {
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-      rejectUnauthorized: false
-    }
-  });
-
-  await client.connect();
   try {
     const result = await client.query('SELECT * FROM bookings WHERE booking_date >= CURRENT_DATE');
+    console.log('Bookings loaded:', result.rows);
     return result.rows;
   } catch (err) {
     console.error('Error loading bookings:', err);
-  } finally {
-    await client.end();
   }
 }
 
