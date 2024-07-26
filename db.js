@@ -7,7 +7,13 @@ const client = new Client({
   user: process.env.PGUSER,
   password: process.env.PGPASSWORD,
   database: process.env.PGDATABASE,
-  ssl: true
+  dialect: "postgres",
+  dialectOptions: {
+    ssl: {
+      require: true, // This will help you. But you will see nwe error
+      rejectUnauthorized: false // This line will fix new error
+    }
+  },
 });
 
 client.connect(err => {
