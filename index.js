@@ -2,6 +2,7 @@ require('dotenv').config();
 const { Telegraf, Scenes } = require('telegraf');
 const LocalSession = require('telegraf-session-local');
 const { Client } = require('pg');
+const pool = require('./db'); // Импортируем пул подключений
 const stage = require('./scenes');
 const {
     isAdmin,
@@ -14,7 +15,6 @@ const {
 } = require('./admin');
 const { addAdminById, removeAdminById } = require('./adminUtils');
 const { bot, mainAdminId } = require('./botInstance');
-const { addBooking, removeBookingByUsername } = require('./syncWithGoogleSheets');
 
 console.log('Starting bot...');
 console.log('Main Admin ID:', mainAdminId);

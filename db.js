@@ -1,7 +1,7 @@
-const { Client } = require('pg');
+const { Pool } = require('pg');
 require('dotenv').config();
 
-const client = new Client({
+const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
     require: true,
@@ -9,7 +9,7 @@ const client = new Client({
   }
 });
 
-client.connect(err => {
+pool.connect(err => {
   if (err) {
     console.error('Connection error', err.stack);
   } else {
@@ -18,13 +18,16 @@ client.connect(err => {
 });
 
 async function loadBookings() {
-  try {
-    const result = await client.query('SELECT * FROM bookings WHERE booking_date >= CURRENT_DATE');
-    console.log('Bookings loaded:', result.rows);
-    return result.rows;
-  } catch (err) {
-    console.error('Error loading bookings:', err);
+    const client = await pool.connect();
+    try {
+      const result = await client.query('SELECT * FROM bookings WHERE booking_date >= CURRENT_DATE');
+      console.log('Bookings loaded:', result.rows);
+      return result.rows;
+    } catch (err) {
+      console.error('Error loading bookings:', err);
+    } finally {
+      client.release();
+    }
   }
-}
-
-module.exports = { loadBookings };
+  
+  module.exports = { loadBookings };
